@@ -1,5 +1,4 @@
 ﻿//Tic-Tac-Toe
-//A nice birthday accomplishment i guess? Happy 20 to myself!
 
 Game myGame = new Game();
 myGame.PlayMultipleRounds();
@@ -198,4 +197,5 @@ class Game
         };
         //(#total rounds to play, #winning rounds needed for overall win)
     }
+
 }
