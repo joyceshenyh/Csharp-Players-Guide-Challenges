@@ -1,0 +1,1 @@
+﻿public enum RoomCondition { Empty, Entrance, FountainOff, FountainOn, Pit, Maelstrom }
