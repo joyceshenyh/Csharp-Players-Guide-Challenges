@@ -1,0 +1,413 @@
+//The Fountain Of Objects
+//Main Game, Small/Medium/Large, Pits, Maelstroms, Getting Help
+
+Game myGame = new Game();
+myGame.Play();
+
+public enum RoomCondition { Empty, Entrance, FountainOff, FountainOn, Pit, Maelstrom }
+
+public interface ICommand
+{
+    public bool RunCommand(Player player, GameMap map);
+}
+
+public class ActivateFountainCommand : ICommand
+{
+    public bool RunCommand(Player player, GameMap map)
+    {
+        if(map.CheckCurrentRoom(0, map.MapDimension/2) == RoomCondition.FountainOff && (player.X, player.Y) == (0, map.MapDimension/2))
+        {
+            map.ActivateFountain();
+            return true;
+        }
+        else if (map.CheckCurrentRoom(0, map.MapDimension/2) == RoomCondition.FountainOn)
+        {
+            Console.WriteLine("The fountain is already activated! You may return.");
+            return false;
+        }
+        else
+        {
+            Console.WriteLine("You are not in the fountain room. You cannot activate it here.");
+            return false;
+        }
+
+        //check if player is in the fountain room & the fountain is off
+        //if conditions are not met, the command cannot be executed
+    }
+}
+
+public class MoveNorthCommand : ICommand
+{
+    public bool RunCommand(Player player, GameMap map)
+    {
+        if (player.X >= 0 && player.X <= (map.MapDimension - 1) &&
+            player.Y + 1 >= 0 && player.Y + 1 <= (map.MapDimension - 1))
+        {
+            player.Y += 1;
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("You have reached the edge of the map. Try a different direction.");
+            return false;
+        }
+
+        //check if the player can make this move (not hitting the wall)
+        //same with the other move commands
+    }
+}
+
+public class MoveSouthCommand : ICommand
+{
+    public bool RunCommand(Player player, GameMap map)
+    {
+        if (player.X >= 0 && player.X <= (map.MapDimension - 1) &&
+            player.Y - 1 >= 0 && player.Y - 1 <= (map.MapDimension - 1))
+        {
+            player.Y -= 1;
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("You have reached the edge of the map. Try a different direction.");
+            return false;
+        }
+    }
+}
+
+public class MoveEastCommand : ICommand
+{
+    public bool RunCommand(Player player, GameMap map)
+    {
+        if (player.X + 1 >= 0 && player.X + 1 <= (map.MapDimension - 1) &&
+            player.Y >= 0 && player.Y <= (map.MapDimension - 1))
+        {
+            player.X += 1;
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("You have reached the edge of the map. Try a different direction.");
+            return false;
+        }
+    }
+}
+
+public class MoveWestCommand : ICommand
+{
+    public bool RunCommand(Player player, GameMap map)
+    {
+        if (player.X - 1 >= 0 && player.X - 1 <= (map.MapDimension - 1) &&
+            player.Y >= 0 && player.Y <= (map.MapDimension - 1))
+        {
+            player.X -= 1;
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("You have reached the edge of the map. Try a different direction.");
+            return false;
+        }
+    }
+}
+
+public class GameMap
+{
+    private RoomCondition[,] rooms;
+    private static Random rand = new Random();
+    public int MapDimension { get; }
+
+    public GameMap(int dimension)
+    {
+        MapDimension = dimension;
+        rooms = new RoomCondition[dimension, dimension];
+
+        for (int i = 0; i < dimension; i++)
+        {
+            for (int a = 0; a < dimension; a++)
+            {
+                rooms[i, a] = RoomCondition.Empty;
+            }
+        }
+
+        //rooms represented by an 2D array of RoomCondition s
+        //in the start of the build set all rooms to empty/default
+
+        BuildSpecialRoom(RoomCondition.Pit, dimension / 2);
+
+        //then build pit rooms, 2 for small, 3 for medium, 4 for large
+                
+        if(dimension == 8)
+        {
+            BuildSpecialRoom(RoomCondition.Maelstrom, 2);
+        }
+        else
+        {
+            BuildSpecialRoom(RoomCondition.Maelstrom, 1);
+        }
+        
+        //then build Maelstrom room(s), 1 for small and medium, 2 for large
+
+        rooms[0, dimension / 2] = RoomCondition.FountainOff;
+        rooms[0, 0] = RoomCondition.Entrance;
+
+        //finally build entrance and fountain rooms
+    }
+
+    private void BuildSpecialRoom(RoomCondition typeOfSpecialRoom, int quantity)
+    {
+        int specialX = 0;
+        int specialY = 0;
+        bool isValidSpecialRoom = false;
+
+        for (int count = 0; count < quantity; count++)
+        {
+            while (!isValidSpecialRoom)
+            {
+                specialX = rand.Next(MapDimension);
+                specialY = rand.Next(MapDimension);
+                isValidSpecialRoom = (specialX, specialY) != (0, 0) && (specialX, specialY) != (0, MapDimension / 2) &&
+                rooms[specialX, specialY] == RoomCondition.Empty;
+            }
+            rooms[specialX, specialY] = typeOfSpecialRoom;
+            isValidSpecialRoom = false;
+        }
+    }
+
+    //builds special rooms of choice
+    //ensures the special room doesn't take the place of the entrance, fountain room, or another special room
+
+    public RoomCondition CheckCurrentRoom(int X, int Y) => rooms[X, Y];
+
+    private bool HasSomethingNearby(RoomCondition typeOfSpecialRoom, int X, int Y)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0)
+                {
+                    continue;
+                }
+
+                int XChecked = X + dx;
+                int YChecked = Y + dy;
+
+                bool isInMap = (XChecked >= 0 && XChecked <= MapDimension - 1) && (YChecked >= 0 && YChecked <= MapDimension - 1);
+                if (isInMap)
+                {
+                    if (rooms[XChecked, YChecked] == typeOfSpecialRoom)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    //checks for special rooms around the current position
+    //only checks those rooms within range of the map (i.e. ignores the walls)
+
+    public bool HasPitNearby(int X, int Y) => HasSomethingNearby(RoomCondition.Pit, X, Y);
+    public bool HasMaelstromNearby(int X, int Y) => HasSomethingNearby(RoomCondition.Maelstrom, X, Y);
+    
+    public void ActivateFountain() => rooms[0, MapDimension/2] = RoomCondition.FountainOn;
+
+    public void MoveMaelstrom(int X, int Y)
+    {
+        rooms[X, Y] = RoomCondition.Empty;
+        BuildSpecialRoom(RoomCondition.Maelstrom, 1);
+
+        //this actually doesn't follow the writer's exact instructions
+        //i.e. the Maelstrom always move one space south and two spaces west w/ wrapping
+        //I made it random move
+    }
+
+    public static GameMap AskForMapSize()
+    {        
+        int mapDimension = 0;
+        while(mapDimension == 0)
+        {
+            Console.WriteLine("Choose your game map size.");
+            Console.WriteLine("Small: 4*4\nMedium: 6*6\nLarge: 8*8");
+            string userSize = Console.ReadLine().ToLower();
+            mapDimension = userSize switch
+            {
+                "small" => 4,
+                "medium" => 6,
+                "large" => 8,
+                _ => 0
+            };
+        }
+        return new GameMap(mapDimension);
+    }
+
+}
+
+public class Player
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Player()
+    {
+        X = 0;
+        Y = 0;
+    }
+
+    //player has X and Y properties to record their current location
+    //works together with GameMap's current room
+
+    public void GetBlownByMaelstrom(GameMap map)
+    {
+        X = X < map.MapDimension - 2 ? X + 2 : map.MapDimension - 1;
+        Y = Y < map.MapDimension - 1 ? Y + 1 : map.MapDimension - 1;
+
+        //the player moves one space north and two spaces east
+        //if they are against the boundary they are just moved to the boundary
+    }
+}
+
+public class Game
+{
+    private GameMap map;
+    private Player player;
+
+    public Game()
+    {
+        map = GameMap.AskForMapSize();
+        player = new Player();
+        Console.Clear();
+    }
+
+    private void DisplayHelp()
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Enter 'move north', 'move south', 'move east', or 'move west' to move in the corresponding direction," +
+            "as long as you are not hitting the boundary walls.");
+        Console.WriteLine("Enter 'activate fountain' to activate the Fountain of Objects if you are in the fountain room, or does nothing if you are not.");
+        Console.ForegroundColor = ConsoleColor.Gray;
+    }
+
+    public void Play()
+    {
+        Console.WriteLine("-------------------------------------------------------------------------------------");
+        Console.WriteLine("\nYou enter the Cavern of Objects, a maze of rooms filled with dangerous pits in search of the Fountain of Objects." +
+                "\nLight is visible only in the entrance, and no other light is seen anywhere in the caverns." +
+                "\nYou must navigate the Caverns with your other senses." +
+                "\nFind the Fountain of Objects, activate it, and return to the entrance.");
+        Console.WriteLine("\nLook out for pits. You will feel a breeze if a pit is in an adjacent room. If you enter a room with a pit, you will die.");
+        Console.WriteLine("\nMaelstroms are violent forces of sentient wind. " +
+                          "Entering a room with one could transport you to another location in the caverns." +
+                          "You will be able to hear their growling and groaning in nearby rooms.\n");
+
+        while (true)
+        {
+            Console.WriteLine("-------------------------------------------------------------------------------------");
+            Console.WriteLine($"You are currently in the room at Row={player.X}, Column={player.Y}.");
+            RoomCondition currentRoomStatus = map.CheckCurrentRoom(player.X, player.Y);
+            string message = currentRoomStatus switch
+            {
+                RoomCondition.Entrance => "You see light in this room coming from outside the cavern. This is the entrance.",
+                RoomCondition.FountainOff => "You hear water dripping in this room. The Fountain of Objects is here!",
+                RoomCondition.FountainOn => "You hear the rushing waters from the Fountain of Objects. It has been reactivated!",
+                RoomCondition.Pit => "Oh no - This is a pit room! You fell into it and failed.",
+                RoomCondition.Maelstrom => "You have been blown by the maelstrom!",
+                RoomCondition.Empty => "You hear your steps against the marble floor, nothing seems to be inside this room.",
+            };
+
+            //notify the player of current room's condition
+            Console.WriteLine(message);
+
+            if (currentRoomStatus == RoomCondition.Maelstrom)
+            {
+                int maelstromX = player.X;
+                int maelstromY = player.Y;
+                player.GetBlownByMaelstrom(map);
+                map.MoveMaelstrom(maelstromX, maelstromY);
+                continue;
+
+                //if the current room has the Maelstrom, the player gets blown and this round ends
+            }
+
+            //notify the player of nearby rooms' conditions
+            if (map.HasPitNearby(player.X, player.Y))
+            {
+                Console.WriteLine("You feel a draft. There is a pit in a nearby room.");
+            }
+            if(map.HasMaelstromNearby(player.X, player.Y))
+            {
+                Console.WriteLine("You hear the growling and groaning of a maelstrom nearby.");
+            }
+
+            //evaluate the game outcome and decide if the game continues                       
+            if (currentRoomStatus == RoomCondition.Pit)
+            {
+                Console.WriteLine($"Better luck next trial!");
+                return;
+
+                //player fails if they steps into a pit room, game ends
+            }
+
+            else if (currentRoomStatus == RoomCondition.Entrance && map.CheckCurrentRoom(0, map.MapDimension/2) == RoomCondition.FountainOn)
+            {
+                Console.WriteLine("The Fountain of Objects has been reactivated, and you have escaped with your life!\nYou win!");
+                return;
+
+                //if the player return to entrance with fountain activated they win, game ends
+            }
+
+            else
+            {
+                string? playerAction;
+                ICommand? nextRoundCommand = null;
+                bool isValidCommand = false;
+
+                while (!isValidCommand)
+                {
+                    while (nextRoundCommand == null)
+                    {
+                        Console.Write("What do you want to do? ");
+                        playerAction = Console.ReadLine().ToLower();
+                        nextRoundCommand = playerAction switch
+                        {
+                            "move east" => new MoveEastCommand(),
+                            "move west" => new MoveWestCommand(),
+                            "move north" => new MoveNorthCommand(),
+                            "move south" => new MoveSouthCommand(),
+                            "activate fountain" => new ActivateFountainCommand(),
+                            _ => null,
+                        };
+
+                        if(playerAction == "help")
+                        {
+                            DisplayHelp();
+                            continue;
+                        }
+
+                        if(nextRoundCommand == null)
+                        {
+                            Console.WriteLine("Sorry, the fountain does not understand that. Please try again.");
+                        }
+
+                        //only advance to executing the command if it is one of the valid options
+                    }
+
+                    isValidCommand = nextRoundCommand.RunCommand(player, map);
+                    if (!isValidCommand)
+                    {
+                        nextRoundCommand = null;
+
+                        //if current command cannot be executed, clear the command memory and ask the player to try another
+                    }
+                }
+
+            }
+
+        }
+
+    }
+
+}
